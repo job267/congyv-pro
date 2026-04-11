@@ -1,0 +1,10 @@
+.env
+agent.py
+pro.md
+project_design.md
+USAGE.md
+__pychache__/
+venv/
+.idea/
+.vscode/
+env/
