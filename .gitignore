@@ -8,4 +8,4 @@ venv/
 .idea/
 .vscode/
 env/
-app.db
+data/app.db
