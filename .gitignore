@@ -8,4 +8,7 @@ venv/
 .idea/
 .vscode/
 env/
-data/app.db
+*.db
+*.sqlite
+*.sqlite3
+*.sql
