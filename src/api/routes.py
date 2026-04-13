@@ -17,6 +17,8 @@ from src.schemas import (
     RegisterRequest,
     SkillDetailResponse,
     SkillSummaryResponse,
+    TtsSynthesizeRequest,
+    TtsSynthesizeResponse,
     UserProfile,
 )
 
@@ -101,6 +103,21 @@ def create_router(
                 message=payload.message,
             ),
             user_id=user.user_id,
+        )
+
+    @router.post("/tts/synthesize", response_model=TtsSynthesizeResponse)
+    def tts_synthesize(payload: TtsSynthesizeRequest, request: Request) -> TtsSynthesizeResponse:
+        _ = get_current_user(request)
+        if settings.tts_provider == "none":
+            raise AppError(
+                "TTS_NOT_IMPLEMENTED",
+                "TTS provider is not configured yet. This endpoint is reserved for future TTS integration.",
+                status_code=501,
+            )
+        raise AppError(
+            "TTS_NOT_IMPLEMENTED",
+            f"TTS provider '{settings.tts_provider}' is declared but not implemented yet.",
+            status_code=501,
         )
 
     @router.get("/wechat/callback", response_class=PlainTextResponse)
@@ -197,4 +214,3 @@ def create_router(
         )
 
     return router
-

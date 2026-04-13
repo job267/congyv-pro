@@ -100,3 +100,17 @@ class UserProfile(BaseModel):
 class AuthResponse(BaseModel):
     token: str
     user: UserProfile
+
+
+class TtsSynthesizeRequest(BaseModel):
+    text: str = Field(min_length=1)
+    voice: str | None = None
+    speed: float = 1.0
+
+
+class TtsSynthesizeResponse(BaseModel):
+    provider: str
+    audio_url: str | None = None
+    audio_base64: str | None = None
+    mime_type: str | None = None
+    message: str = ""

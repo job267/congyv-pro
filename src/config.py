@@ -16,6 +16,7 @@ class Settings:
     rate_limit_window_seconds: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
     auth_secret_key: str = os.getenv("AUTH_SECRET_KEY", "change-this-secret")
     auth_token_ttl_seconds: int = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "2592000"))
+    tts_provider: str = os.getenv("TTS_PROVIDER", "none").lower()
     model_provider: str = os.getenv("MODEL_PROVIDER", "deepseek").lower()
     deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", "")
     deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
