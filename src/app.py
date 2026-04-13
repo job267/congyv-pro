@@ -9,6 +9,7 @@ from src.config import settings
 from src.core.errors import register_exception_handlers
 from src.core.rate_limiter import InMemoryRateLimiter
 from src.llm.model_client import DeepSeekModelClient, MockModelClient
+from src.services.auth_service import AuthService
 from src.services.chat_service import ChatService
 from src.services.conversation_service import ConversationService
 from src.services.skill_service import SkillService
@@ -42,10 +43,15 @@ def create_model_client():
     return MockModelClient()
 
 
-store = InMemoryStore()
+store = InMemoryStore(database_path=settings.database_path)
 skill_service = SkillService(store=store, skills_dir=Path(settings.skills_dir))
 skill_service.load_skills()
 conversation_service = ConversationService(store=store)
+auth_service = AuthService(
+    store=store,
+    secret_key=settings.auth_secret_key,
+    token_ttl_seconds=settings.auth_token_ttl_seconds,
+)
 model_client = create_model_client()
 rate_limiter = InMemoryRateLimiter(
     max_requests=settings.rate_limit_max_requests,
@@ -65,6 +71,7 @@ app.include_router(
         skill_service=skill_service,
         conversation_service=conversation_service,
         chat_service=chat_service,
+        auth_service=auth_service,
         model_client=model_client,
         store=store,
         rate_limiter=rate_limiter,

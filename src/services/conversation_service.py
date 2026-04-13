@@ -65,10 +65,12 @@ class ConversationService:
                 return conversation
         return None
 
-    def list_messages(self, conversation_id: str) -> list[MessageResponse]:
+    def list_messages(self, conversation_id: str, user_id: str) -> list[MessageResponse]:
         conversation = self.store.get_conversation(conversation_id)
         if not conversation:
             raise AppError("CONVERSATION_NOT_FOUND", "Conversation does not exist.", status_code=404)
+        if conversation.user_id != user_id:
+            raise AppError("CONVERSATION_FORBIDDEN", "Conversation does not belong to current user.", status_code=403)
         return [
             MessageResponse(
                 message_id=message.message_id,

@@ -18,12 +18,12 @@ class ChatService:
         self.model_client = model_client
         self.context_limit = context_limit
 
-    def chat(self, payload: ChatRequest) -> ChatResponse:
+    def chat(self, payload: ChatRequest, user_id: str) -> ChatResponse:
         skill = self.skill_service.require_enabled_skill(payload.skill_id)
 
         conversation = self.conversation_service.get_or_create_conversation(
             conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
+            user_id=user_id,
             skill_id=payload.skill_id,
             channel=payload.channel,
         )
@@ -63,4 +63,3 @@ class ChatService:
             ),
             created_at=isoformat(assistant_message.created_at),
         )
-

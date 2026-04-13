@@ -18,7 +18,6 @@ class SkillDetailResponse(BaseModel):
 
 
 class ConversationCreateRequest(BaseModel):
-    user_id: str = Field(min_length=1)
     skill_id: str = Field(min_length=1)
     channel: str = Field(default="web", min_length=1)
 
@@ -50,7 +49,6 @@ class UsageInfo(BaseModel):
 
 class ChatRequest(BaseModel):
     conversation_id: str | None = None
-    user_id: str = Field(min_length=1)
     skill_id: str = Field(min_length=1)
     channel: str = Field(default="web", min_length=1)
     message: str = Field(min_length=1)
@@ -83,3 +81,22 @@ class HealthResponse(BaseModel):
     model_status: str
     db_status: str
 
+
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class UserProfile(BaseModel):
+    user_id: str
+    username: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserProfile

@@ -9,10 +9,13 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
+    database_path: str = os.getenv("DATABASE_PATH", "data/app.db")
     skills_dir: str = os.getenv("SKILLS_DIR", "data/skills")
     context_limit: int = int(os.getenv("CONTEXT_LIMIT", "12"))
     rate_limit_max_requests: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "30"))
     rate_limit_window_seconds: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    auth_secret_key: str = os.getenv("AUTH_SECRET_KEY", "change-this-secret")
+    auth_token_ttl_seconds: int = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "2592000"))
     model_provider: str = os.getenv("MODEL_PROVIDER", "deepseek").lower()
     deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", "")
     deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")

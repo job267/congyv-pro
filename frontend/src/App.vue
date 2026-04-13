@@ -4,7 +4,6 @@ import { computed, onMounted, ref } from "vue";
 const apiBase = import.meta.env.VITE_API_BASE || "";
 const skills = ref([]);
 const selectedSkill = ref("");
-const userId = ref("u001");
 const conversations = ref([]);
 const activeConversationId = ref("");
 const messages = ref([]);
@@ -14,17 +13,97 @@ const loadingConversations = ref(false);
 const sending = ref(false);
 const errorMessage = ref("");
 
+const authMode = ref("login");
+const authUsername = ref("");
+const authPassword = ref("");
+const authLoading = ref(false);
+const token = ref(localStorage.getItem("auth_token") || "");
+const currentUser = ref(null);
+
+const isAuthed = computed(() => !!token.value && !!currentUser.value);
 const activeConversation = computed(() =>
   conversations.value.find((item) => item.conversation_id === activeConversationId.value)
 );
 
-async function request(path, options = {}) {
-  const response = await fetch(`${apiBase}${path}`, options);
+function saveAuth(authToken, user) {
+  token.value = authToken;
+  currentUser.value = user;
+  localStorage.setItem("auth_token", authToken);
+  localStorage.setItem("auth_user", JSON.stringify(user));
+}
+
+function clearAuth() {
+  token.value = "";
+  currentUser.value = null;
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_user");
+  conversations.value = [];
+  messages.value = [];
+  activeConversationId.value = "";
+}
+
+async function request(path, options = {}, requiresAuth = true) {
+  const headers = { ...(options.headers || {}) };
+  if (requiresAuth && token.value) {
+    headers.Authorization = `Bearer ${token.value}`;
+  }
+
+  const response = await fetch(`${apiBase}${path}`, {
+    ...options,
+    headers
+  });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && requiresAuth) {
+      clearAuth();
+    }
     throw new Error(data.error_message || `Request failed: ${response.status}`);
   }
   return data;
+}
+
+async function bootstrapUserSpace() {
+  await loadSkills();
+  await loadConversations();
+}
+
+async function loginOrRegister() {
+  if (!authUsername.value.trim() || !authPassword.value.trim()) return;
+  authLoading.value = true;
+  errorMessage.value = "";
+  try {
+    const path = authMode.value === "login" ? "/api/auth/login" : "/api/auth/register";
+    const data = await request(
+      path,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: authUsername.value.trim(),
+          password: authPassword.value
+        })
+      },
+      false
+    );
+    saveAuth(data.token, data.user);
+    authPassword.value = "";
+    await bootstrapUserSpace();
+  } catch (err) {
+    errorMessage.value = err.message;
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+async function loadMe() {
+  try {
+    const data = await request("/api/auth/me");
+    currentUser.value = data;
+    return true;
+  } catch {
+    clearAuth();
+    return false;
+  }
 }
 
 async function loadSkills() {
@@ -44,11 +123,10 @@ async function loadSkills() {
 }
 
 async function loadConversations() {
-  if (!userId.value) return;
   loadingConversations.value = true;
   errorMessage.value = "";
   try {
-    const data = await request(`/api/conversations?user_id=${encodeURIComponent(userId.value)}`);
+    const data = await request("/api/conversations");
     conversations.value = data;
   } catch (err) {
     errorMessage.value = err.message;
@@ -69,14 +147,13 @@ async function openConversation(conversationId) {
 }
 
 async function createConversation() {
-  if (!selectedSkill.value || !userId.value) return;
+  if (!selectedSkill.value || !isAuthed.value) return;
   errorMessage.value = "";
   try {
     const data = await request("/api/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        user_id: userId.value,
         skill_id: selectedSkill.value,
         channel: "web"
       })
@@ -90,7 +167,7 @@ async function createConversation() {
 
 async function sendMessage() {
   const text = chatInput.value.trim();
-  if (!text || !selectedSkill.value || !userId.value || sending.value) return;
+  if (!text || !selectedSkill.value || !isAuthed.value || sending.value) return;
 
   sending.value = true;
   errorMessage.value = "";
@@ -110,7 +187,6 @@ async function sendMessage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         conversation_id: activeConversationId.value || null,
-        user_id: userId.value,
         skill_id: selectedSkill.value,
         channel: "web",
         message: text
@@ -134,6 +210,11 @@ async function sendMessage() {
   }
 }
 
+function logout() {
+  clearAuth();
+  errorMessage.value = "";
+}
+
 function formatTime(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -141,8 +222,23 @@ function formatTime(value) {
 }
 
 onMounted(async () => {
-  await loadSkills();
-  await loadConversations();
+  const cachedUser = localStorage.getItem("auth_user");
+  if (cachedUser) {
+    try {
+      currentUser.value = JSON.parse(cachedUser);
+    } catch {
+      clearAuth();
+    }
+  }
+
+  if (token.value) {
+    const ok = await loadMe();
+    if (ok) {
+      await bootstrapUserSpace();
+    }
+  } else {
+    await loadSkills();
+  }
 });
 </script>
 
@@ -150,17 +246,36 @@ onMounted(async () => {
   <div class="page-shell">
     <header class="top-bar">
       <h1>Skill Chat Console</h1>
-      <p>Vue + FastAPI 的基础联调界面</p>
+      <p v-if="isAuthed">当前用户：{{ currentUser.username }}</p>
+      <p v-else>请先登录或注册后开始对话</p>
     </header>
 
-    <main class="layout">
+    <main v-if="!isAuthed" class="auth-layout">
+      <section class="panel auth-panel">
+        <h2>{{ authMode === "login" ? "登录" : "注册" }}</h2>
+        <label class="field">
+          <span>用户名</span>
+          <input v-model="authUsername" placeholder="3-32位，不含空格" />
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input v-model="authPassword" type="password" placeholder="至少6位" @keydown.enter="loginOrRegister" />
+        </label>
+        <div class="actions">
+          <button @click="loginOrRegister" :disabled="authLoading">
+            {{ authLoading ? "处理中..." : authMode === "login" ? "登录" : "注册" }}
+          </button>
+          <button class="ghost-btn" @click="authMode = authMode === 'login' ? 'register' : 'login'">
+            切换到{{ authMode === "login" ? "注册" : "登录" }}
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <main v-else class="layout">
       <aside class="panel left-panel">
         <section class="section">
           <h2>连接配置</h2>
-          <label class="field">
-            <span>User ID</span>
-            <input v-model="userId" placeholder="例如 u001" />
-          </label>
           <label class="field">
             <span>Skill</span>
             <select v-model="selectedSkill" :disabled="loadingSkills">
@@ -177,6 +292,9 @@ onMounted(async () => {
             <button @click="loadConversations" :disabled="loadingConversations">
               {{ loadingConversations ? "加载中..." : "刷新会话" }}
             </button>
+          </div>
+          <div class="actions">
+            <button class="ghost-btn" @click="logout">退出登录</button>
           </div>
         </section>
 

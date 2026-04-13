@@ -41,3 +41,11 @@ class Message:
     token_count: int
     created_at: datetime
 
+
+@dataclass
+class User:
+    user_id: str
+    username: str
+    password_hash: str
+    password_salt: str
+    created_at: datetime
